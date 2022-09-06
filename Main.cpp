@@ -71,6 +71,9 @@ struct Enemy
 	}
 };
 
+
+
+
 Vec3 rotateX(Vec3 vec3, double theta) {
 	double y = vec3.y * Cos(theta) - vec3.z * Sin(theta);
 	double z = vec3.y * Sin(theta) + vec3.z * Cos(theta);
@@ -127,8 +130,8 @@ Vec2 enemyPositionToScreen(double FOVH, Vec3 focusPosition, Vec3 enemyPosition) 
 	enemyVAngle = enemyVAngle - focusVAngle;
 	Vec2 enemyPos;
 	Size windowSize = Scene::Size();
-	enemyPos.x = (enemyHAngle / (FOVH*Math::Pi/180)) * (windowSize.x / 2);
-	enemyPos.y = (enemyVAngle / (FOVH*Math::Pi*16/180/9)) * (windowSize.y / 2);
+	enemyPos.x = (enemyHAngle / FOVH * (windowSize.x / 2));
+	enemyPos.y = (enemyVAngle / FOVH * (9/16) * (windowSize.y / 2));
 	return enemyPos;
 }
 
@@ -145,8 +148,6 @@ struct Detector
 
 void Main()
 {
-	const int windowSizeX = 1280;
-	const int windowSizeY = 720;
 	//Window::Resize(windowSizeX, windowSizeY);
 	Window::SetFullscreen(true);
 
@@ -158,8 +159,11 @@ void Main()
 	const MSRenderTexture renderTexture{ Scene::Size(), TextureFormat::R8G8B8A8_Unorm_SRGB, HasDepth::Yes };
 
 	ColorF color2{ 1.0, 0.5, 0.0 };
-	double HFOV = 104;
-	double FOV = HFOV*9/16;
+	double HFOV_deg = 104;
+	double VFOV_deg = HFOV_deg *9/16;
+	double HFOV = Math::ToRadians(HFOV_deg);
+	double VFOV = Math::ToRadians(VFOV_deg);
+
 	double VSensitivity = 0.0005;
 	double HSensitivity = 0.0005;
 	bool isCheatON = false;
@@ -171,7 +175,7 @@ void Main()
 
 	Vec2 cursorDelta = Cursor::Delta();
 
-	BasicCamera3D camera{ renderTexture.size(), FOV*180/Math::Pi, eyePosition, focusPosition };
+	BasicCamera3D camera{ renderTexture.size(), VFOV, eyePosition, focusPosition };
 
 	Cursor::SetDefaultStyle(CursorStyle::Hidden);
 
@@ -179,13 +183,17 @@ void Main()
 
 	while (System::Update())
 	{
+		auto sSize = Scene::Size();
+		const int windowSizeX = sSize.x;
+		const int windowSizeY = sSize.y;
+		
 		if (KeyC.down()) {
 			isCheatON = !isCheatON;
 		}
 
 		cursorDelta = Cursor::DeltaF();
 		Cursor::SetPos(Scene::Center());
-		Vec2 enemyScreenPosition = enemyPositionToScreen(FOV, focusPosition, enemy1.position);
+		Vec2 enemyScreenPosition = enemyPositionToScreen(HFOV, focusPosition, enemy1.position);
 		Vec2 enemyMousePosition = enemyPositionToMouse(focusPosition, enemy1.position, HSensitivity, VSensitivity);
 
 		if (isCheatON && MouseL.pressed())
@@ -213,7 +221,7 @@ void Main()
 
 		// 位置・注目点情報を更新
 		camera.setView(eyePosition, focusPosition);
-		camera.setProjection(renderTexture.size(), FOV * 3.14 / 120);
+		//camera.setProjection(renderTexture.size(), VFOV);
 
 		Graphics3D::SetCameraTransform(camera);
 
