@@ -108,6 +108,7 @@ struct Detector
 
 	bool detect(Vec2 cursorDelta, int countContinueSameDirection, int countContinueJump)
 	{
+		return false; //OFFにしといた
 		bool isTurnStart = countContinueSameDirection == 0;
 		bool isJumpStart = countContinueJump == 2;
 		if (count < maxCount && (isTurnStart || isJumpStart))
@@ -139,7 +140,7 @@ void Main()
 	Window::Resize(windowSizeX, windowSizeY);
 
 	CSV csv;
-	csv.writeRow(U"enemyPositionX", U"enemyPositionY", U"enemyPositionZ", U"isCheatON", U"cursorDelataX", U"cursorDeltaY");
+	csv.writeRow(U"enemyPositionX", U"enemyPositionY", U"enemyPositionZ", U"focusPositionX", U"focusPositionY", U"focusPositionZ", U"isCheatON", U"cursorDelataX", U"cursorDeltaY");
 
 	const ColorF backgroundColor = ColorF{ 0.4, 0.6, 0.8 }.removeSRGBCurve();
 	const Texture uvChecker{ U"example/texture/uv.png", TextureDesc::MippedSRGB };
@@ -172,13 +173,12 @@ void Main()
 		}
 
 		cursorDelta = Cursor::DeltaF();
+		Cursor::SetPos(Scene::Center());
 
 		if (isCheatON)
 		{
 			cursorDelta += cheat(focusPosition, enemy1.position, HSensitivity, VSensitivity);
 		}
-
-		Cursor::SetPos(Scene::Center());
 
 		double VAngle = Atan2(-focusPosition.y, abs2(focusPosition.x, focusPosition.z));
 		double HAngle = Atan2(focusPosition.z, focusPosition.x);
@@ -187,7 +187,7 @@ void Main()
 		focusPosition = rotateX(Vec3(0, 0, 1), nextVAngle);
 		focusPosition = rotateY(focusPosition, nextHAngle);
 
-		csv.writeRow(enemy1.position.x, enemy1.position.y, enemy1.position.z, isCheatON, cursorDelta.x, cursorDelta.y);
+		csv.writeRow(enemy1.position.x, enemy1.position.y, enemy1.position.z, focusPosition.x, focusPosition.y, focusPosition.z, isCheatON, cursorDelta.x, cursorDelta.y);
 
 		ClearPrint();
 		Print << U"Press C to cheat.";
