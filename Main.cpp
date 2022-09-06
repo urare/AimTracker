@@ -101,37 +101,45 @@ Vec2 cheat(Vec3 focusPosition, Vec3 enemyPosition, double HSensitivity, double V
 	return Vec2{ deltaX * correctRate, deltaY * correctRate };
 }
 
+
+Vec2 enemyPositionToMouse(Vec3 focusPosition, Vec3 enemyPosition, double HSensitivity, double VSensitivity) {
+	const double correctRate = 0.1;
+	double deltaX = -Acos((focusPosition.x * enemyPosition.x + focusPosition.z * enemyPosition.z) / (abs2(focusPosition.x, focusPosition.z) * abs2(enemyPosition.x, enemyPosition.z))) / HSensitivity;
+	if (focusPosition.x * enemyPosition.z - focusPosition.z * enemyPosition.x < 0)
+	{
+		deltaX = -deltaX;
+	}
+	double focusVAngle = Atan2(focusPosition.y, abs2(focusPosition.x, focusPosition.z));
+	double enemyVAngle = Atan2(enemyPosition.y, abs2(enemyPosition.x, enemyPosition.z));
+	double deltaY = -(enemyVAngle - focusVAngle) / VSensitivity;
+	return Vec2{ deltaX, -deltaY };
+}
+
+Vec2 enemyPositionToScreen(double FOVH, Vec3 focusPosition, Vec3 enemyPosition) {
+	double enemyHAngle = - Acos((focusPosition.x * enemyPosition.x + focusPosition.z * enemyPosition.z) / (abs2(focusPosition.x, focusPosition.z) * abs2(enemyPosition.x, enemyPosition.z)));
+	if (focusPosition.x * enemyPosition.z - focusPosition.z * enemyPosition.x < 0)
+	{
+		enemyHAngle = -enemyHAngle;
+	}
+
+	double focusVAngle = Atan2(focusPosition.y, abs2(focusPosition.x, focusPosition.z));
+	double enemyVAngle = Atan2(enemyPosition.y, abs2(enemyPosition.x, enemyPosition.z));
+	enemyVAngle = enemyVAngle - focusVAngle;
+	Vec2 enemyPos;
+	Size windowSize = Scene::Size();
+	enemyPos.x = (enemyHAngle / (FOVH*Math::Pi/180)) * (windowSize.x / 2);
+	enemyPos.y = (enemyVAngle / (FOVH*Math::Pi*16/180/9)) * (windowSize.y / 2);
+	return enemyPos;
+}
+
+
 struct Detector
 {
-	int count = 0;
-	const int maxCount = 1;
-	const double threshold = 10;
 
-	Vec2 previousDelta;
-
-	bool detect(Vec2 cursorDelta, int countContinueSameDirection, int countContinueJump)
+	bool detect(Vec2 cursorDelta, Vec3 enemyPosition)
 	{
-		bool isTurnStart = countContinueSameDirection == 0;
-		bool isJumpStart = countContinueJump == 2;
-		if (count < maxCount && (isTurnStart || isJumpStart))
-		{
-			count++;
-			previousDelta = cursorDelta;
-			return false;
-		}
-		else
-		{
-			double deltaDelta = abs2(cursorDelta.x - previousDelta.x, cursorDelta.y - previousDelta.y);
-			previousDelta = cursorDelta;
-			if (deltaDelta > threshold)
-			{
-				return true;
-			}
-			else
-			{
-				return false;
-			}
-		}
+		//TODO
+		return false;
 	}
 };
 
@@ -143,7 +151,7 @@ void Main()
 	Window::SetFullscreen(true);
 
 	CSV csv;
-	csv.writeRow(U"enemyPositionX", U"enemyPositionY", U"enemyPositionZ", U"isCheatON", U"cursorDelataX", U"cursorDeltaY");
+	csv.writeRow(U"enemyScreenPositionX", U"enemyScreenPositionY", U"enemyMousePositionX", U"enemyMousePositionY", U"isCheatON", U"cursorDelataX", U"cursorDeltaY");
 
 	const ColorF backgroundColor = ColorF{ 0.4, 0.6, 0.8 }.removeSRGBCurve();
 	const Texture uvChecker{ U"example/texture/uv.png", TextureDesc::MippedSRGB };
@@ -162,7 +170,7 @@ void Main()
 
 	Vec2 cursorDelta = Cursor::Delta();
 
-	BasicCamera3D camera{ renderTexture.size(), FOV /180 * 3.14 , eyePosition, focusPosition };
+	BasicCamera3D camera{ renderTexture.size(), FOV*Math::Pi*16/180/9, eyePosition, focusPosition };
 
 	Cursor::SetDefaultStyle(CursorStyle::Hidden);
 
@@ -170,19 +178,22 @@ void Main()
 
 	while (System::Update())
 	{
-		enemy1.updatePosition();
 		if (KeyC.down()) {
 			isCheatON = !isCheatON;
 		}
 
 		cursorDelta = Cursor::DeltaF();
+		Cursor::SetPos(Scene::Center());
+		Vec2 enemyScreenPosition = enemyPositionToScreen(FOV, focusPosition, enemy1.position);
+		Vec2 enemyMousePosition = enemyPositionToMouse(focusPosition, enemy1.position, HSensitivity, VSensitivity);
 
-		if (isCheatON)
+		if (isCheatON && MouseL.pressed())
 		{
 			cursorDelta += cheat(focusPosition, enemy1.position, HSensitivity, VSensitivity);
 		}
 
-		Cursor::SetPos(Scene::Center());
+
+		csv.writeRow(enemyScreenPosition.x, enemyScreenPosition.y, enemyMousePosition.x, enemyMousePosition.y, isCheatON && MouseL.pressed(), cursorDelta.x, cursorDelta.y);
 
 		double VAngle = Atan2(-focusPosition.y, abs2(focusPosition.x, focusPosition.z));
 		double HAngle = Atan2(focusPosition.z, focusPosition.x);
@@ -191,10 +202,13 @@ void Main()
 		focusPosition = rotateX(Vec3(0, 0, 1), nextVAngle);
 		focusPosition = rotateY(focusPosition, nextHAngle);
 
-		csv.writeRow(enemy1.position.x, enemy1.position.y, enemy1.position.z, isCheatON, cursorDelta.x, cursorDelta.y);
+
+		enemy1.updatePosition();
 
 		ClearPrint();
 		Print << U"Press C to cheat.";
+		Print << U"ScreenPosition:{}"_fmt(enemyScreenPosition);
+		Print << U"MousePosition:{}"_fmt(enemyMousePosition);
 
 		// 位置・注目点情報を更新
 		camera.setView(eyePosition, focusPosition);
@@ -238,5 +252,5 @@ void Main()
 		}
 	}
 	const DateTime t = DateTime::Now();
-	csv.save(U"log/log{:0>2}{:0>2}_{:0>2}{:0>2}.csv"_fmt(t.month, t.day, t.hour, t.minute));
+	csv.save(U"log/log{:0>2}{:0>2}_{:0>2}{:0>2}{:0>2}.csv"_fmt(t.month, t.day, t.hour, t.minute, t.second));
 }
