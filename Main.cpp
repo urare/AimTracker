@@ -154,7 +154,8 @@ void Main()
 	const MSRenderTexture renderTexture{ Scene::Size(), TextureFormat::R8G8B8A8_Unorm_SRGB, HasDepth::Yes };
 
 	ColorF color2{ 1.0, 0.5, 0.0 };
-	double FOV = 70;
+	double FOVX = 70_deg;
+	Vec2 FOV{ FOVX, FOVX*9/16 };
 	double VSensitivity = 0.005;
 	double HSensitivity = 0.005;
 	bool isCheatON = false;
@@ -166,7 +167,7 @@ void Main()
 
 	Vec2 cursorDelta = Cursor::Delta();
 
-	BasicCamera3D camera{ renderTexture.size(), FOV*Math::Pi*16/180/9, eyePosition, focusPosition };
+	BasicCamera3D camera{ renderTexture.size(), FOV.y, eyePosition, focusPosition };
 
 	Cursor::SetDefaultStyle(CursorStyle::Hidden);
 
@@ -180,7 +181,7 @@ void Main()
 
 		cursorDelta = Cursor::DeltaF();
 		Cursor::SetPos(Scene::Center());
-		Vec2 enemyScreenPosition = enemyPositionToScreen(FOV, focusPosition, enemy1.position);
+		Vec2 enemyScreenPosition = enemyPositionToScreen(FOV.x, focusPosition, enemy1.position);
 		Vec2 enemyMousePosition = enemyPositionToMouse(focusPosition, enemy1.position, HSensitivity, VSensitivity);
 
 		if (isCheatON && MouseL.pressed())
@@ -208,7 +209,7 @@ void Main()
 
 		// 位置・注目点情報を更新
 		camera.setView(eyePosition, focusPosition);
-		camera.setProjection(renderTexture.size(), FOV * 3.14 / 120);
+		//camera.setProjection(renderTexture.size(), FOV * 3.14 / 120);
 
 		Graphics3D::SetCameraTransform(camera);
 
