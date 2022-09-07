@@ -225,7 +225,7 @@ void Main()
 		bool isAimingToEnemy = ray.intersects(enemy1.shape) != none;
 		const DateTime now = DateTime::Now();
 		csv.writeRow(
-			U"{}{}{}{}"_fmt(now.year, now.month, now.day, now.hour, now.minute, now.second, now.milliseconds),
+			U"{:0>4}{:0>2}{:0>2}{:0>2}{:0>2}{:0>2}{:0>2}"_fmt(now.year, now.month, now.day, now.hour, now.minute, now.second, now.milliseconds),
 			enemyScreenPosition.x,
 			enemyScreenPosition.y,
 			enemyMousePosition.x,
@@ -239,13 +239,14 @@ void Main()
 
 		ClearPrint();
 		Print << U"Press C to cheat.";
-		Print << U"{}{}{}{}"_fmt(now.year, now.month, now.day, now.hour, now.minute, now.second, now.milliseconds),
+		Print << U"{:0>4}{:0>2}{:0>2}{:0>2}{:0>2}{:0>2}{:0>2}"_fmt(now.year, now.month, now.day, now.hour, now.minute, now.second, now.milliseconds),
 		Print << U"ScreenPosition:{}"_fmt(enemyScreenPosition);
 		Print << U"MousePosition:{}"_fmt(enemyMousePosition);
 		Print << U"cheatON:{}"_fmt(isCheatON && MouseL.pressed());
 		Print << U"shooting:{}"_fmt(MouseL.pressed());
 		Print << U"aimingToEnemy:{}"_fmt(isAimingToEnemy);
 		Print << U"cursorDelta{}"_fmt(cursorDelta);
+		Print << U"FPS:{}"_fmt(Profiler::FPS());
 
 		// 位置・注目点情報を更新
 		camera.setView(eyePosition, focusPosition);
@@ -287,8 +288,8 @@ void Main()
 			//}S
 		}
 	}
-	csv.writeRow(U"FPS");
-	csv.writeRow(Profiler::FPS());
+	csv.writeRow(U"FPS", U"cheatCorrectRate");
+	csv.writeRow(Profiler::FPS(), correctRate);
 	const DateTime t = DateTime::Now();
 	csv.save(U"log/log{:0>2}{:0>2}_{:0>2}{:0>2}{:0>2}.csv"_fmt(t.month, t.day, t.hour, t.minute, t.second));
 }
