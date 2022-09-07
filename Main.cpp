@@ -1,14 +1,16 @@
-﻿# include <Siv3D.hpp>
+﻿#include <Siv3D.hpp>
 
 struct Enemy
 {
-	const double speed = 1;
-	const unsigned int maxCountSameDirectionContinue = 10000;
-	const unsigned int maxCountContinueNoJump = 10000;
-	const unsigned int maxCountContinueJump = 20;
+	const double speed = 0.2;
+	const int maxCountSameDirectionContinue = 10000*1.5;
+	const int maxCountContinueNoJump = 10000*2;
+	const double yspeed = 1;
+	const int maxCountContinueJump = 120/yspeed;
 
-	const unsigned int maxX = 30;
-	const unsigned int maxY = 10;
+	const int maxX = 30;
+	const int maxY = 10;
+	//const double ycicle = 0.5;
 
 	const std::vector<double> jumpPositionY;
 
@@ -25,9 +27,11 @@ struct Enemy
 	{
 		// move X
 		if (
-			position.x > maxX ||
-			-position.x > maxX ||
-			rng() % maxCountSameDirectionContinue < countContinueSameDirection
+			(position.x > maxX ||
+			position.x < -maxX )
+			||(
+			rng() % maxCountSameDirectionContinue < countContinueSameDirection)
+			&& countContinueJump == 0
 			)
 		{
 			direction *= -1;
@@ -43,7 +47,7 @@ struct Enemy
 		if (countContinueJump > 0)
 		{
 			position.y = std::sin(countContinueJump * 3.14 / maxCountContinueJump) * maxY;
-			if (countContinueJump > maxCountContinueJump)
+			if (countContinueJump  > (maxCountContinueJump))
 			{
 				countContinueJump = 0;
 			}
@@ -63,9 +67,12 @@ struct Enemy
 				countContinueNoJump++;
 			}
 		}
-		shape = { position, 2, 4 };
+		shape = { position, 2, 8 };
 	}
 };
+
+
+
 
 Vec3 rotateX(Vec3 vec3, double theta) {
 	double y = vec3.y * Cos(theta) - vec3.z * Sin(theta);
@@ -85,9 +92,8 @@ double abs2(double x, double y) {
 	return Sqrt(x * x + y * y);
 }
 
-Vec2 cheat(Vec3 focusPosition, Vec3 enemyPosition, double HSensitivity, double VSensitivity) {
-	const double correctRate = 0.1;
-	double deltaX = - Acos((focusPosition.x * enemyPosition.x + focusPosition.z * enemyPosition.z) / (abs2(focusPosition.x, focusPosition.z) * abs2(enemyPosition.x, enemyPosition.z))) / HSensitivity;
+Vec2 cheat(Vec3 focusPosition, Vec3 enemyPosition, double HSensitivity, double VSensitivity, double correctRate = 0.1) {
+	double deltaX = -Acos((focusPosition.x * enemyPosition.x + focusPosition.z * enemyPosition.z) / (abs2(focusPosition.x, focusPosition.z) * abs2(enemyPosition.x, enemyPosition.z))) / HSensitivity;
 	if (focusPosition.x * enemyPosition.z - focusPosition.z * enemyPosition.x < 0)
 	{
 		deltaX = -deltaX;
@@ -124,8 +130,8 @@ Vec2 enemyPositionToScreen(double FOVH, Vec3 focusPosition, Vec3 enemyPosition) 
 	enemyVAngle = enemyVAngle - focusVAngle;
 	Vec2 enemyPos;
 	Size windowSize = Scene::Size();
-	enemyPos.x = (enemyHAngle / (FOVH*Math::Pi/180)) * (windowSize.x / 2);
-	enemyPos.y = (enemyVAngle / (FOVH*Math::Pi*16/180/9)) * (windowSize.y / 2);
+	enemyPos.x = (enemyHAngle / FOVH * (windowSize.x / 2));
+	enemyPos.y = (enemyVAngle / FOVH * (9/16) * (windowSize.y / 2));
 	return enemyPos;
 }
 
@@ -142,9 +148,8 @@ struct Detector
 
 void Main()
 {
-	const int windowSizeX = 1280;
-	const int windowSizeY = 720;
-	Window::Resize(windowSizeX, windowSizeY);
+	//Window::Resize(windowSizeX, windowSizeY);
+	Window::SetFullscreen(true);
 
 	CSV csv;
 	csv.writeRow(U"enemyScreenPositionX", U"enemyScreenPositionY", U"enemyMousePositionX", U"enemyMousePositionY", U"isCheatON", U"cursorDelataX", U"cursorDeltaY");
@@ -154,10 +159,13 @@ void Main()
 	const MSRenderTexture renderTexture{ Scene::Size(), TextureFormat::R8G8B8A8_Unorm_SRGB, HasDepth::Yes };
 
 	ColorF color2{ 1.0, 0.5, 0.0 };
-	double FOVX = 70_deg;
-	Vec2 FOV{ FOVX, FOVX*9/16 };
-	double VSensitivity = 0.005;
-	double HSensitivity = 0.005;
+	double HFOV_deg = 104;
+	double VFOV_deg = HFOV_deg *9/16;
+	double HFOV = Math::ToRadians(HFOV_deg);
+	double VFOV = Math::ToRadians(VFOV_deg);
+
+	double VSensitivity = 0.0005;
+	double HSensitivity = 0.0005;
 	bool isCheatON = false;
 	Detector detector;
 	Font font{ 50 };
@@ -167,7 +175,7 @@ void Main()
 
 	Vec2 cursorDelta = Cursor::Delta();
 
-	BasicCamera3D camera{ renderTexture.size(), FOV.y, eyePosition, focusPosition };
+	BasicCamera3D camera{ renderTexture.size(), VFOV, eyePosition, focusPosition };
 
 	Cursor::SetDefaultStyle(CursorStyle::Hidden);
 
@@ -175,13 +183,17 @@ void Main()
 
 	while (System::Update())
 	{
+		auto sSize = Scene::Size();
+		const int windowSizeX = sSize.x;
+		const int windowSizeY = sSize.y;
+		
 		if (KeyC.down()) {
 			isCheatON = !isCheatON;
 		}
 
 		cursorDelta = Cursor::DeltaF();
 		Cursor::SetPos(Scene::Center());
-		Vec2 enemyScreenPosition = enemyPositionToScreen(FOV.x, focusPosition, enemy1.position);
+		Vec2 enemyScreenPosition = enemyPositionToScreen(HFOV, focusPosition, enemy1.position);
 		Vec2 enemyMousePosition = enemyPositionToMouse(focusPosition, enemy1.position, HSensitivity, VSensitivity);
 
 		if (isCheatON && MouseL.pressed())
@@ -195,7 +207,7 @@ void Main()
 		double VAngle = Atan2(-focusPosition.y, abs2(focusPosition.x, focusPosition.z));
 		double HAngle = Atan2(focusPosition.z, focusPosition.x);
 		double nextVAngle = Clamp(cursorDelta.y * VSensitivity + VAngle, -Math::Pi, Math::Pi);
-		double nextHAngle = -cursorDelta.x * HSensitivity + HAngle - Math::Pi/2;
+		double nextHAngle = -cursorDelta.x * HSensitivity + HAngle - Math::Pi / 2;
 		focusPosition = rotateX(Vec3(0, 0, 1), nextVAngle);
 		focusPosition = rotateY(focusPosition, nextHAngle);
 
@@ -209,9 +221,11 @@ void Main()
 
 		// 位置・注目点情報を更新
 		camera.setView(eyePosition, focusPosition);
-		//camera.setProjection(renderTexture.size(), FOV * 3.14 / 120);
+		//camera.setProjection(renderTexture.size(), VFOV);
 
 		Graphics3D::SetCameraTransform(camera);
+
+		auto center = Scene::Center();
 
 		// 3D 描画
 		{
@@ -226,23 +240,24 @@ void Main()
 			renderTexture.resolve();
 			Shader::LinearToScreen(renderTexture);
 
+
 			Ray ray(eyePosition, focusPosition);
 			if (ray.intersects(enemy1.shape))
 			{
-				Circle{ windowSizeX/2, windowSizeY/2, 5 }.draw(Color{ 0, 255, 0 });
+				Circle{ center.x,center.y, 5 }.draw(Color{ 0, 255, 0 });
 			}
 			else
 			{
-				Circle{ windowSizeX/2, windowSizeY/2, 5 }.draw(Color{ 255, 0, 0 });
+				Circle{ center.x,center.y, 5 }.draw(Color{ 255, 0, 0 });
 			}
 			if (isCheatON)
 			{
 				font(U"チートON").draw(windowSizeX / 2 - 50 * 2.5, 0, Palette::Red);
 			}
-			if (detector.detect(cursorDelta, enemy1.position))
-			{
-				font(U"DETECTED!!").drawAt(Scene::Center(), Palette::Red);
-			}
+			//if (detector.detect(cursorDelta, enemy1.countContinueSameDirection, enemy1.countContinueJump))
+			//{
+			//	font(U"DETECTED!!").drawAt(Scene::Center(), Palette::Red);
+			//}S
 		}
 	}
 	const DateTime t = DateTime::Now();
