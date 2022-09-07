@@ -152,7 +152,7 @@ void Main()
 	Window::SetFullscreen(true);
 
 	CSV csv;
-	csv.writeRow(U"enemyScreenPositionX", U"enemyScreenPositionY", U"enemyMousePositionX", U"enemyMousePositionY", U"isCheatON", U"cursorDelataX", U"cursorDeltaY");
+	csv.writeRow(U"enemyScreenPositionX", U"enemyScreenPositionY", U"enemyMousePositionX", U"enemyMousePositionY", U"isCheatON", U"shooting", U"hitting", U"cursorDelataX", U"cursorDeltaY");
 
 	const ColorF backgroundColor = ColorF{ 0.4, 0.6, 0.8 }.removeSRGBCurve();
 	const Texture uvChecker{ U"example/texture/uv.png", TextureDesc::MippedSRGB };
@@ -201,9 +201,6 @@ void Main()
 			cursorDelta += cheat(focusPosition, enemy1.position, HSensitivity, VSensitivity);
 		}
 
-
-		csv.writeRow(enemyScreenPosition.x, enemyScreenPosition.y, enemyMousePosition.x, enemyMousePosition.y, isCheatON && MouseL.pressed(), cursorDelta.x, cursorDelta.y);
-
 		double VAngle = Atan2(-focusPosition.y, abs2(focusPosition.x, focusPosition.z));
 		double HAngle = Atan2(focusPosition.z, focusPosition.x);
 		double nextVAngle = Clamp(cursorDelta.y * VSensitivity + VAngle, -Math::Pi, Math::Pi);
@@ -211,13 +208,20 @@ void Main()
 		focusPosition = rotateX(Vec3(0, 0, 1), nextVAngle);
 		focusPosition = rotateY(focusPosition, nextHAngle);
 
-
 		enemy1.updatePosition();
+
+		Ray ray(eyePosition, focusPosition);
+		bool isAimingToEnemy = ray.intersects(enemy1.shape) != none;
+		csv.writeRow(enemyScreenPosition.x, enemyScreenPosition.y, enemyMousePosition.x, enemyMousePosition.y, isCheatON && MouseL.pressed(), MouseL.pressed(), MouseL.pressed() && isAimingToEnemy, cursorDelta.x, cursorDelta.y);
 
 		ClearPrint();
 		Print << U"Press C to cheat.";
 		Print << U"ScreenPosition:{}"_fmt(enemyScreenPosition);
 		Print << U"MousePosition:{}"_fmt(enemyMousePosition);
+		Print << U"cheatON:"_fmt(isCheatON && MouseL.pressed());
+		Print << U"shooting:{}"_fmt(MouseL.pressed());
+		Print << U"hitting:{}"_fmt(isAimingToEnemy && MouseL.pressed());
+		Print << U"cursorDelta{}"_fmt(cursorDelta);
 
 		// 位置・注目点情報を更新
 		camera.setView(eyePosition, focusPosition);
@@ -241,8 +245,7 @@ void Main()
 			Shader::LinearToScreen(renderTexture);
 
 
-			Ray ray(eyePosition, focusPosition);
-			if (ray.intersects(enemy1.shape))
+			if (isAimingToEnemy)
 			{
 				Circle{ center.x,center.y, 5 }.draw(Color{ 0, 255, 0 });
 			}
