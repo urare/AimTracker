@@ -178,6 +178,8 @@ void Main()
 	Enemy enemy1;
 
 	CSV csv;
+	csv.writeRow(U"cheatCorrectRate");
+	csv.writeRow(correctRate);
 	csv.writeRow(
 		U"Time",
 		U"enemyScreenPositionX",
@@ -288,8 +290,6 @@ void Main()
 			//}S
 		}
 	}
-	csv.writeRow(U"cheatCorrectRate");
-	csv.writeRow(correctRate);
 	const DateTime t = DateTime::Now();
 	csv.save(U"log/log{:0>2}{:0>2}_{:0>2}{:0>2}{:0>2}.csv"_fmt(t.month, t.day, t.hour, t.minute, t.second));
 }
