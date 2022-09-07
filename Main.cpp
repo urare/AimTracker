@@ -148,25 +148,21 @@ struct Detector
 
 void Main()
 {
-	//Window::Resize(windowSizeX, windowSizeY);
 	Window::SetFullscreen(true);
-
-	CSV csv;
-	csv.writeRow(U"enemyScreenPositionX", U"enemyScreenPositionY", U"enemyMousePositionX", U"enemyMousePositionY", U"isCheatON", U"shooting", U"hitting", U"cursorDelataX", U"cursorDeltaY");
 
 	const ColorF backgroundColor = ColorF{ 0.4, 0.6, 0.8 }.removeSRGBCurve();
 	const Texture uvChecker{ U"example/texture/uv.png", TextureDesc::MippedSRGB };
 	const MSRenderTexture renderTexture{ Scene::Size(), TextureFormat::R8G8B8A8_Unorm_SRGB, HasDepth::Yes };
 
-	ColorF color2{ 1.0, 0.5, 0.0 };
-	double HFOV_deg = 104;
-	double VFOV_deg = HFOV_deg *9/16;
-	double HFOV = Math::ToRadians(HFOV_deg);
-	double VFOV = Math::ToRadians(VFOV_deg);
+	const double HFOV_deg = 104;
+	const double VFOV_deg = HFOV_deg *9/16;
+	const double HFOV = Math::ToRadians(HFOV_deg);
+	const double VFOV = Math::ToRadians(VFOV_deg);
 
-	double VSensitivity = 0.0005;
-	double HSensitivity = 0.0005;
+	const double VSensitivity = 0.0005;
+	const double HSensitivity = 0.0005;
 	bool isCheatON = false;
+	const double correctRate = 0.1;
 	Detector detector;
 	Font font{ 50 };
 
@@ -180,6 +176,21 @@ void Main()
 	Cursor::SetDefaultStyle(CursorStyle::Hidden);
 
 	Enemy enemy1;
+
+	CSV csv;
+	csv.writeRow(
+		U"Time",
+		U"enemyScreenPositionX",
+		U"enemyScreenPositionY",
+		U"enemyMousePositionX",
+		U"enemyMousePositionY",
+		U"isCheatON",
+		U"shooting",
+		U"hitting",
+		U"cursorDelataX",
+		U"cursorDeltaY"
+	);
+
 
 	while (System::Update())
 	{
@@ -198,7 +209,7 @@ void Main()
 
 		if (isCheatON && MouseL.pressed())
 		{
-			cursorDelta += cheat(focusPosition, enemy1.position, HSensitivity, VSensitivity);
+			cursorDelta += cheat(focusPosition, enemy1.position, HSensitivity, VSensitivity, correctRate);
 		}
 
 		double VAngle = Atan2(-focusPosition.y, abs2(focusPosition.x, focusPosition.z));
@@ -212,15 +223,28 @@ void Main()
 
 		Ray ray(eyePosition, focusPosition);
 		bool isAimingToEnemy = ray.intersects(enemy1.shape) != none;
-		csv.writeRow(enemyScreenPosition.x, enemyScreenPosition.y, enemyMousePosition.x, enemyMousePosition.y, isCheatON && MouseL.pressed(), MouseL.pressed(), MouseL.pressed() && isAimingToEnemy, cursorDelta.x, cursorDelta.y);
+		const DateTime now = DateTime::Now();
+		csv.writeRow(
+			U"{}{}{}{}"_fmt(now.year, now.month, now.day, now.hour, now.minute, now.second, now.milliseconds),
+			enemyScreenPosition.x,
+			enemyScreenPosition.y,
+			enemyMousePosition.x,
+			enemyMousePosition.y,
+			isCheatON && MouseL.pressed(),
+			MouseL.pressed(),
+			isAimingToEnemy,
+			cursorDelta.x,
+			cursorDelta.y
+		);
 
 		ClearPrint();
 		Print << U"Press C to cheat.";
+		Print << U"{}{}{}{}"_fmt(now.year, now.month, now.day, now.hour, now.minute, now.second, now.milliseconds),
 		Print << U"ScreenPosition:{}"_fmt(enemyScreenPosition);
 		Print << U"MousePosition:{}"_fmt(enemyMousePosition);
-		Print << U"cheatON:"_fmt(isCheatON && MouseL.pressed());
+		Print << U"cheatON:{}"_fmt(isCheatON && MouseL.pressed());
 		Print << U"shooting:{}"_fmt(MouseL.pressed());
-		Print << U"hitting:{}"_fmt(isAimingToEnemy && MouseL.pressed());
+		Print << U"aimingToEnemy:{}"_fmt(isAimingToEnemy);
 		Print << U"cursorDelta{}"_fmt(cursorDelta);
 
 		// 位置・注目点情報を更新
@@ -263,6 +287,8 @@ void Main()
 			//}S
 		}
 	}
+	csv.writeRow(U"FPS");
+	csv.writeRow(Profiler::FPS());
 	const DateTime t = DateTime::Now();
 	csv.save(U"log/log{:0>2}{:0>2}_{:0>2}{:0>2}{:0>2}.csv"_fmt(t.month, t.day, t.hour, t.minute, t.second));
 }
