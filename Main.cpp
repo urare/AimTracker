@@ -288,8 +288,8 @@ void Main()
 			//}S
 		}
 	}
-	csv.writeRow(U"FPS", U"cheatCorrectRate");
-	csv.writeRow(Profiler::FPS(), correctRate);
+	csv.writeRow(U"cheatCorrectRate");
+	csv.writeRow(correctRate);
 	const DateTime t = DateTime::Now();
 	csv.save(U"log/log{:0>2}{:0>2}_{:0>2}{:0>2}{:0>2}.csv"_fmt(t.month, t.day, t.hour, t.minute, t.second));
 }
