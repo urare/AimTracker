@@ -51,7 +51,7 @@ public:
 			this->ibuff++;
 
 			if (this->ibuff == this->buffsize) {
-				// 
+				// send
 				this->client.send(buff);
 
 				// 受信
@@ -60,12 +60,15 @@ public:
 				std::cout << "data = " << ret[0] << ret[1] << ret[2] << ret[3] << std::endl;
 				this->ibuff = 0;
 
-				if (ret[0] != '0') {
+				if (ret[0] == '1') {
 					std::cout << "cheet detected !!" << std::endl;
 					return DetecterRes::Cheet;
 				}
-				else {
+				else if(ret[0]=='0') {
 					return DetecterRes::Safe;
+				}
+				else {
+					return DetecterRes::Undecied;
 				}
 			}
 			return DetecterRes::Undecied;
@@ -269,9 +272,8 @@ struct Detector
 		}
 		else {
 			client.clear();
+			return false;
 		}
-
-		return false;
 	}
 };
 
@@ -340,7 +342,9 @@ void Main()
 
 		if (isCheatON && MouseL.pressed())
 		{
-			cursorDelta += cheat(focusPosition, enemy1.position, HSensitivity, VSensitivity, correctRate);
+			auto cheetvec = cheat(focusPosition, enemy1.position, HSensitivity, VSensitivity, correctRate);
+			cursorDelta.x += cheetvec.x;
+			cursorDelta.y += cheetvec.y;
 		}
 
 		double VAngle = Atan2(-focusPosition.y, abs2(focusPosition.x, focusPosition.z));
