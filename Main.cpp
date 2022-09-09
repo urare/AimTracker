@@ -1,5 +1,109 @@
 ﻿#include <Siv3D.hpp>
 
+
+struct DetecterMsgFrame {
+	int enemyX;
+	int enemyY;
+	int curDeltaX;
+	int curDeltaY;
+};
+
+enum DetecterRes
+{
+	Safe = 0,
+	Cheet,
+	Error,
+	Undecied
+};
+
+class DetecterClient {
+private:
+	static const int buffsize = 100;
+	int buff[buffsize * 4] = { 0 };
+	int ibuff;
+	char ret[4] = {};
+	TCPClient client;
+	bool connected = false;
+public:
+	int port, fps;
+	IPv4Address ip;
+
+	DetecterClient() :ip("127.0.0.1"), port(50000), fps(240) {
+		this->ibuff = 0;
+		this->client.connect(this->ip, this->port);
+	};
+
+	DetecterRes push(DetecterMsgFrame frame) {
+		if (this->client.isConnected())
+		{
+			if (not this->connected) // 接続された
+			{
+				connected = true;
+
+				//Window::SetTitle(U"TCPClient: Connection established!");
+			}
+
+
+			this->buff[ibuff * 4 + 0] = frame.enemyX;
+			this->buff[ibuff * 4 + 1] = frame.enemyY;
+			this->buff[ibuff * 4 + 2] = frame.curDeltaX;
+			this->buff[ibuff * 4 + 3] = frame.curDeltaY;
+			this->ibuff++;
+
+			if (this->ibuff == this->buffsize) {
+				// 
+				this->client.send(buff);
+
+				// 受信
+				while (client.read(ret));
+				Console.open();
+				std::cout << "data = " << ret[0] << ret[1] << ret[2] << ret[3] << std::endl;
+				this->ibuff = 0;
+
+				if (ret[0] != '0') {
+					std::cout << "cheet detected !!" << std::endl;
+					return DetecterRes::Cheet;
+				}
+				else {
+					return DetecterRes::Safe;
+				}
+			}
+			return DetecterRes::Undecied;
+
+		}
+
+		if (this->client.hasError()) // 切断/接続エラー
+		{
+			this->client.disconnect();
+
+			this->connected = false;
+
+			this->client.connect(this->ip, this->port);
+
+			return DetecterRes::Error;
+		}
+
+		return DetecterRes::Undecied;
+	}
+
+	bool clear() {
+		this->ibuff = 0;
+		return true;
+	}
+
+	bool disconect() {
+		if (this->connected) {
+			this->client.disconnect();
+			this->connected = false;
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
+};
+
+
 struct Enemy
 {
 	const double speed = 0.2;
@@ -138,10 +242,35 @@ Vec2 enemyPositionToScreen(double FOVH, Vec3 focusPosition, Vec3 enemyPosition) 
 
 struct Detector
 {
+	DetecterClient client;
+	bool cheeted = false;
 
-	bool detect(Vec2 cursorDelta, Vec3 enemyPosition)
+	bool detect(Vec2 cursorDelta, Vec2 enemyPosition, bool shooting = true)
 	{
-		//TODO
+		if (shooting) {
+			DetecterMsgFrame frame{ enemyPosition.x,enemyPosition.y,cursorDelta.x,cursorDelta.y };
+			auto res = client.push(frame);
+			switch (res)
+			{
+			case DetecterRes::Safe:
+				cheeted = false;
+				break;
+			case DetecterRes::Cheet:
+				cheeted = true;
+				break;
+			case DetecterRes::Error:
+				break;
+			case DetecterRes::Undecied:
+				break;
+			default:
+				break;
+			}
+			return cheeted;
+		}
+		else {
+			client.clear();
+		}
+
 		return false;
 	}
 };
@@ -284,10 +413,10 @@ void Main()
 			{
 				font(U"チートON").draw(windowSizeX / 2 - 50 * 2.5, 0, Palette::Red);
 			}
-			//if (detector.detect(cursorDelta, enemy1.countContinueSameDirection, enemy1.countContinueJump))
-			//{
-			//	font(U"DETECTED!!").drawAt(Scene::Center(), Palette::Red);
-			//}S
+			if (detector.detect(cursorDelta, enemyMousePosition, MouseL.pressed()))
+			{
+				font(U"DETECTED!!").drawAt(Scene::Center(), Palette::Red);
+			}
 		}
 	}
 	const DateTime t = DateTime::Now();
